@@ -102,8 +102,8 @@ highlight_terms <- function(text, terms) {
   return(highlighted_text)
 }
 
-# --- MODIFICATION: Emojis added to card ---
-create_researcher_profile <- function(row, keyword_terms, device_terms, software_terms, storage_terms, population_terms) {
+# --- MODIFICATION: Renamed to create_researcher_panel, returns an accordion_panel ---
+create_researcher_panel <- function(row, keyword_terms, device_terms, software_terms, storage_terms, population_terms) {
   
   # Highlight keyword terms
   research_interests_html <- HTML(highlight_terms(row$Research_Interests, keyword_terms))
@@ -115,27 +115,32 @@ create_researcher_profile <- function(row, keyword_terms, device_terms, software
   software_html <- HTML(highlight_terms(row$Software, c(keyword_terms, software_terms)))
   storage_html <- HTML(highlight_terms(row$Storage, c(keyword_terms, storage_terms)))
   
-  card(
-    style = "height: auto;",
-    class = "mb-3",
-    card_header(
-      h3(row$Name), 
-      p(strong(row$Title), style = "color: #FFDE7A; margin-bottom: 0.2px"),
-      p(em(row$Affiliation), style = "color: #FFDE7A; margin-bottom: 0.2px"),
-      p(row$Email, style = "color: #FFDE7A; margin-bottom: 5px"),
-      style = "background-color: #7A0019; color: white;"
-    ),
-    card_body(
-      h5("🔎 Research Interests", style="margin-bottom:0px"), p(research_interests_html),
-      h5("📋 Current/Recent Studies", style="margin-bottom:0px"), p(studies_html),
-      h5("👥 Populations Studied", style="margin-bottom:0px"), p(populations_html),
-      h5("⚙️ Technologies Used", style="margin-bottom:0px"),
-      tags$ul(
-        tags$li(strong("Devices: "), devices_html),
-        tags$li(strong("Software: "), software_html),
-        tags$li(strong("Storage: "), storage_html)
-      )
+  # --- This is the title of the accordion button (what was the card_header) ---
+  panel_title <- tagList(
+    h3(row$Name), 
+    p(strong(row$Title), style = "color: #FFDE7A; margin-bottom: 0.2px"),
+    p(em(row$Affiliation), style = "color: #FFDE7A; margin-bottom: 0.2px"),
+    p(row$Email, style = "color: #FFDE7A; margin-bottom: 5px")
+  )
+  
+  # --- This is the body that expands/collapses (what was the card_body) ---
+  panel_body <- tagList(
+    h5("🔎 Research Interests"), p(research_interests_html),
+    h5("📋 Current/Recent Studies"), p(studies_html),
+    h5("👥 Populations Studied"), p(populations_html),
+    h5("⚙️ Technologies Used"),
+    tags$ul(
+      tags$li(strong("Devices: "), devices_html),
+      tags$li(strong("Software: "), software_html),
+      tags$li(strong("Storage: "), storage_html)
     )
+  )
+  
+  # --- Return an accordion_panel ---
+  accordion_panel(
+    title = panel_title,
+    value = row$Email, # Use email for a stable unique ID
+    panel_body
   )
 }
 
@@ -146,14 +151,57 @@ create_researcher_profile <- function(row, keyword_terms, device_terms, software
 ui <- fluidPage(
   theme = app_theme,
   useShinyjs(),
+  
+  # --- MODIFICATION: Added CSS for accordion styling ---
   tags$style(HTML("
     .shiny-options-group label { 
       font-size: 0.9rem; /* 1rem is the default, 0.9rem is 90% */
     }
+    
+    /* Style the accordion header to look like the old maroon card header */
+    .accordion-button {
+      background-color: #7A0019 !important;
+      color: white !important;
+    }
+    
+    /* Style the text inside the maroon header */
+    .accordion-button h3 {
+      color: white !important;
+      margin-bottom: 0.5rem;
+    }
+    .accordion-button p {
+      margin-bottom: 0.2rem;
+    }
+    
+    /* Make sure the gold text stays gold */
+    .accordion-button p strong, .accordion-button p em, .accordion-button p {
+       color: #FFDE7A !important;
+    }
+    
+    /* Style the expand/collapse icon to be white */
+    .accordion-button::after {
+      filter: brightness(0) invert(1);
+    }
+    .accordion-button:not(.collapsed)::after {
+      filter: brightness(0) invert(1);
+    }
+    
+    /* Style the accordion body to look like the old card body */
+    .accordion-body {
+      background-color: white;
+      color: black;
+      border: 1px solid #ddd;
+    }
+    
+    /* Add a margin between accordion items */
+    .accordion-item {
+      margin-bottom: 1rem;
+      border: none; /* Remove default accordion border */
+    }
   ")),
+  
   titlePanel("UMN Mobile & Wearable Technology Researcher Directory"),
   sidebarLayout(
-    # --- MODIFICATION: Emojis added to sidebar ---
     sidebarPanel(
       width = 4,
       textInput("keyword_search", "⌨️ Keyword Search", placeholder = "e.g., mental health, Fitbit"),
@@ -208,11 +256,11 @@ ui <- fluidPage(
         p("This tool is designed to help you find and connect with researchers at the University of Minnesota working with mobile and wearable technology."), 
         p("You can browse profiles to learn about research interests, current studies, and the specific technologies used."),
         p("This app was created by", a("me", href="http://z.umn.edu/julianw"),  
-        "using data from", 
-        a("this Google Form", href = "https://forms.gle/SFnrd9kEKH4rswKZ6", target = "_blank"), ".",
-        "Only those who have filled out this form have access to the tool."),
+          "using data from", 
+          a("this Google Form", href = "https://forms.gle/SFnrd9kEKH4rswKZ6", target = "_blank"), ".",
+          "Only those who have filled out this form have access to the tool."),
         p("I am on sabbatical in the '25-'26 academic year with the goal of building community and research infrastructure to support investigators who use mobile and wearable technology for data collection.
-          If you'd like to know more about this initiative or get involved, please contact me at", strong("julianw@umn.edu"), "."),
+         If you'd like to know more about this initiative or get involved, please contact me at", strong("julianw@umn.edu"), "."),
         style = "background-color:#faebb9"
       ),
       uiOutput("researcher_profiles")
@@ -304,20 +352,30 @@ server <- function(input, output, session) {
     
     keyword_terms <- unlist(str_split(input$keyword_search, "\\s+"))
     
-    profile_cards <- lapply(1:nrow(results), function(i) {
-      create_researcher_profile(
+    # --- MODIFICATION: Create panels instead of cards ---
+    profile_panels <- lapply(1:nrow(results), function(i) {
+      create_researcher_panel(
         row = results[i,],
         keyword_terms = keyword_terms,
         device_terms = input$device_filter,
         software_terms = input$software_filter,
-        storage_terms = input->storage_filter,
+        storage_terms = input$storage_filter, # <<< TYPO FIX (was input->storage_filter)
         population_terms = input$population_filter
       )
     })
     
     results_header <- h4(paste(nrow(results), "Researcher(s) Found"))
     
-    tagList(results_header, profile_cards)
+    # --- MODIFICATION: Wrap panels in an accordion, set open = FALSE ---
+    tagList(
+      results_header,
+      accordion(
+        !!!profile_panels, # Splice the list of panels
+        id = "researcher_accordion",
+        open = FALSE, # This makes them all collapsed by default
+        multiple = TRUE # Allows opening more than one at a time
+      )
+    )
   })
 }
 # --- 6. Run the Application ---
