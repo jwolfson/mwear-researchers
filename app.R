@@ -31,8 +31,8 @@ app_theme <- bs_theme(
   fg = "#000000",        # default text color: black
   primary = "#7A0019",   # Maroon
   secondary = "#FFDE7A", # Gold
-  base_font = font_google("Open Sans"),
-  bootswatch = "zephyr"
+  base_font = font_google("Quicksand"),
+  bootswatch = "flatly"
 )
 
 
@@ -117,10 +117,10 @@ create_researcher_panel <- function(row, keyword_terms, device_terms, software_t
   
   # --- This is the title of the accordion button (what was the card_header) ---
   panel_title <- tagList(
-    h3(row$Name), 
+    h3(row$Name, style = "color:white; margin-top:0px"), 
     p(strong(row$Title), style = "color: #FFDE7A; margin-bottom: 0.2px"),
     p(em(row$Affiliation), style = "color: #FFDE7A; margin-bottom: 0.2px"),
-    p(row$Email, style = "color: #FFDE7A; margin-bottom: 5px")
+    p(row$Email, style = "color: #FFDE7A")
   )
   
   # --- This is the body that expands/collapses (what was the card_body) ---
@@ -144,13 +144,34 @@ create_researcher_panel <- function(row, keyword_terms, device_terms, software_t
   )
 }
 
+loginPage <- fluidPage(
+  theme = app_theme,
+  tags$head(
+    tags$meta(`http-equiv` = "Content-Security-Policy",
+              content = "default-src 'self'; script-src 'self' https://accounts.google.com https://www.gstatic.com 'unsafe-inline' 'unsafe-eval' blob: data:; style-src 'self' 'unsafe-inline' 'unsafe-hashes';"),
+    HTML('<script src="https://accounts.google.com/gsi/client" async defer></script>'),
+    includeScript("signin.js")
+  ),
+  titlePanel("Please Log In"),
+  # Container for the Google Sign-In button
+  div(id = "signin", style = "margin: 50px auto; width: 220px;"),
+  # Use HTML() to insert an inline script that triggers initialization
+  tags$script(HTML("safeInitGoogleSignIn();"))
+)
 
 # =============================================================================
 # |                                   UI                                      |
 # =============================================================================
-ui <- fluidPage(
+mainPage <- fluidPage(
   theme = app_theme,
   useShinyjs(),
+  
+  tags$head(
+    tags$meta(`http-equiv` = "Content-Security-Policy",
+              content = "default-src 'self'; script-src 'self' https://accounts.google.com https://www.gstatic.com 'unsafe-inline' 'unsafe-eval' blob: data:; style-src 'self' 'unsafe-inline' 'unsafe-hashes';"),
+    HTML('<script src="https://accounts.google.com/gsi/client" async defer></script>'),
+    includeScript("signin.js")
+  ),
   
   # --- MODIFICATION: Added CSS for accordion styling ---
   tags$style(HTML("
@@ -178,6 +199,21 @@ ui <- fluidPage(
        color: #FFDE7A !important;
     }
     
+    /* Hide the default SVG arrow */
+    .accordion-button::after {
+       background-image: none !important;
+       font-size: 1.5rem;
+       font-weight: bold;
+       color: white;
+       content: '+'; /* Show + by default (collapsed) */
+       transform: none; /* Remove the default rotation */
+    }
+    
+    .accordion-button:not(.collapsed)::after {
+       content: '−'; /* Show - (minus sign) when expanded */
+       transform: none; /* Remove the default rotation */
+    }
+    
     /* Style the expand/collapse icon to be white */
     .accordion-button::after {
       filter: brightness(0) invert(1);
@@ -199,11 +235,12 @@ ui <- fluidPage(
       border: none; /* Remove default accordion border */
     }
   ")),
+
   
   titlePanel("UMN Mobile & Wearable Technology Researcher Directory"),
   sidebarLayout(
     sidebarPanel(
-      width = 4,
+      width = 3,
       textInput("keyword_search", "⌨️ Keyword Search", placeholder = "e.g., mental health, Fitbit"),
       br(),
       card(
@@ -211,8 +248,8 @@ ui <- fluidPage(
         card_body(
           checkboxGroupInput("population_filter", label = NULL, choices = population_choices),
           fluidRow(
-            column(6, actionButton("select_all_populations", "Select All", style = "font-size:10pt")),
-            column(6, actionButton("select_none_populations", "Select None", style = "font-size:10pt"))
+            column(6, actionButton("select_all_populations", "Select All"), align = "center"),
+            column(6, actionButton("select_none_populations", "Select None"), align = "center")
           )
         )
       ),
@@ -222,8 +259,8 @@ ui <- fluidPage(
         card_body(
           checkboxGroupInput("device_filter", label = NULL, choices = device_choices),
           fluidRow(
-            column(6, actionButton("select_all_devices", "Select All", style = "font-size:10pt")),
-            column(6, actionButton("select_none_devices", "Select None", style = "font-size:10pt"))
+            column(6, actionButton("select_all_devices", "Select All", align = "center")),
+            column(6, actionButton("select_none_devices", "Select None", align = "center"))
           )
         )
       ),
@@ -233,8 +270,8 @@ ui <- fluidPage(
         card_body(
           checkboxGroupInput("software_filter", label = NULL, choices = software_choices),
           fluidRow(
-            column(6, actionButton("select_all_software", "Select All", style = "font-size:10pt")),
-            column(6, actionButton("select_none_software", "Select None", style = "font-size:10pt"))
+            column(6, actionButton("select_all_software", "Select All", align = "center")),
+            column(6, actionButton("select_none_software", "Select None", align = "center"))
           )
         )
       ),
@@ -244,17 +281,18 @@ ui <- fluidPage(
         card_body(
           checkboxGroupInput("storage_filter", label = NULL, choices = storage_choices),
           fluidRow(
-            column(6, actionButton("select_all_storage", "Select All", style = "font-size:10pt")),
-            column(6, actionButton("select_none_storage", "Select None", style = "font-size:10pt"))
+            column(6, actionButton("select_all_storage", "Select All", align = "center")),
+            column(6, actionButton("select_none_storage", "Select None", align = "center"))
           )
         )
       )
     ),
     mainPanel(
+      width = 9,
       card(
         class = "mb-3", # Add a margin-bottom for spacing
         p("This tool is designed to help you find and connect with researchers at the University of Minnesota working with mobile and wearable technology."), 
-        p("You can browse profiles to learn about research interests, current studies, and the specific technologies used."),
+        p("You can browse profiles to learn about research interests, current studies, and the specific technologies used. Click the '+' icon next to a researcher's name to expand their profile and see more details about their work."),
         p("This app was created by", a("me", href="http://z.umn.edu/julianw"),  
           "using data from", 
           a("this Google Form", href = "https://forms.gle/SFnrd9kEKH4rswKZ6", target = "_blank"), ".",
@@ -268,11 +306,40 @@ ui <- fluidPage(
   )
 )
 
+# The overall UI is generated dynamically based on login status.
+ui <- uiOutput("page")
+
 # =============================================================================
 # |                                 SERVER                                    |
 # =============================================================================
 server <- function(input, output, session) {
   
+  # Render the appropriate page based on login status.
+  output$page <- renderUI({
+    print(input$g.id)
+    print(input$g.email)
+    
+    if (isTruthy(input$g.id)) {
+      if(input$g.email %in% researcher_data$Email) {
+        mainPage
+      } else {
+        loginPage
+      }
+    } else {
+      loginPage
+    }
+  })
+  
+  # Also trigger a custom message to initialize Google Sign-In on the client side
+  # (in case the inline script didn't fire).
+  observe({
+    if (!isTruthy(input$g.id)) {
+      session$sendCustomMessage("init-signin", "")
+    }
+  })
+  
+  observeEvent(input$g.id, {
+    if (isTruthy(input$g.id)) {
   # --- Observers for "Select All" / "Select None" buttons ---
   observeEvent(input$select_all_populations, {
     updateCheckboxGroupInput(session, "population_filter", selected = population_choices)
@@ -300,6 +367,8 @@ server <- function(input, output, session) {
   })
   observeEvent(input$select_none_storage, {
     updateCheckboxGroupInput(session, "storage_filter", selected = character(0))
+  })
+    }
   })
   
   # --- Reactive filtering logic ---
@@ -379,4 +448,4 @@ server <- function(input, output, session) {
   })
 }
 # --- 6. Run the Application ---
-shinyApp(ui = ui, server = server)
+shinyApp(ui = ui, server = server, options = list(port = 1234))

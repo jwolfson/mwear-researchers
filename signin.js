@@ -8,7 +8,7 @@ function safeInitGoogleSignIn() {
 
 function initGoogleSignIn() {
   google.accounts.id.initialize({
-    client_id: "401792939422-isi34drqbakks9676em4aj1ipvh663g1.apps.googleusercontent.com",
+    client_id: "175673321939-fkjq7dupbssci7kna1jls6bc8vj6qdov.apps.googleusercontent.com",
     callback: handleCredentialResponse
   });
   renderSignInButton();
