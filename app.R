@@ -79,6 +79,7 @@ get_filter_choices <- function(column_data) {
   return(choices[choices != ""])
 }
 
+name_choices <- sort(unique(researcher_data$Name))
 device_choices <- get_filter_choices(researcher_data$Devices)
 software_choices <- get_filter_choices(researcher_data$Software)
 storage_choices <- get_filter_choices(researcher_data$Storage)
@@ -242,7 +243,11 @@ mainPage <- fluidPage(
     sidebarPanel(
       width = 3,
       textInput("keyword_search", "⌨️ Keyword Search", placeholder = "e.g., mental health, Fitbit"),
-      br(),
+      selectizeInput("name_filter", "👤 Filter by Name",
+                     choices = name_choices,
+                     multiple = TRUE,
+                     options = list(placeholder = "Type to search by name...")
+      ),
       card(
         card_header("👥 Populations Studied", style = "background-color: #FFDE7A; color: black;"),
         card_body(
@@ -253,7 +258,6 @@ mainPage <- fluidPage(
           )
         )
       ),
-      br(),
       card(
         card_header("📱 Device Type(s)", style = "background-color: #FFDE7A; color: black;"),
         card_body(
@@ -264,7 +268,6 @@ mainPage <- fluidPage(
           )
         )
       ),
-      br(),
       card(
         card_header("💻 Software/Platform(s)", style = "background-color: #FFDE7A; color: black;"),
         card_body(
@@ -275,7 +278,6 @@ mainPage <- fluidPage(
           )
         )
       ),
-      br(),
       card(
         card_header("🗄️ Data Storage Location(s)", style = "background-color: #FFDE7A; color: black;"),
         card_body(
@@ -374,6 +376,7 @@ server <- function(input, output, session) {
   # --- Reactive filtering logic ---
   filtered_data <- reactive({
     if (nchar(input$keyword_search) == 0 &&
+        is.null(input$name_filter) &&
         is.null(input$device_filter) &&
         is.null(input$software_filter) &&
         is.null(input$storage_filter) &&
@@ -383,10 +386,14 @@ server <- function(input, output, session) {
     
     data <- researcher_data
     
+    if (!is.null(input$name_filter) && length(input$name_filter) > 0) {
+      data <- data %>% filter(Name %in% input$name_filter)
+    }
+
     if (nchar(input$keyword_search) > 0) {
       keyword <- tolower(input$keyword_search)
       data <- data %>%
-        filter(str_detect(tolower(paste(Name, Research_Interests, Studies, Populations, Devices, Software, Storage)), keyword))
+        filter(str_detect(tolower(paste(Research_Interests, Studies, Populations, Devices, Software, Storage)), keyword))
     }
     
     apply_multi_filter <- function(data, column, selections) {
@@ -412,7 +419,7 @@ server <- function(input, output, session) {
     results <- filtered_data()
     
     if (nrow(results) == 0) {
-      if (nchar(input$keyword_search) > 0 || !is.null(input$device_filter) || !is.null(input$software_filter) || !is.null(input$storage_filter) || !is.null(input$population_filter)) {
+      if (nchar(input$keyword_search) > 0 || !is.null(input$name_filter) || !is.null(input$device_filter) || !is.null(input$software_filter) || !is.null(input$storage_filter) || !is.null(input$population_filter)) {
         return(card(h4("No Matching Results"), p("No researchers were found with the selected criteria. Try removing or adding a filter.")))
       } else {
         return(NULL)
